@@ -33,11 +33,6 @@ def home():
     return {"status": "ok"}
 
 
-@app.options("/")
-def options():
-    return {}
-
-
 @app.post("/")
 def metrics(req: RequestBody):
     result = {}
