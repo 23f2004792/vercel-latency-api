@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pathlib import Path
@@ -7,7 +7,7 @@ import numpy as np
 
 app = FastAPI()
 
-# CORS
+# Standard FastAPI CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,7 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load telemetry data
 DATA_FILE = Path(__file__).parent.parent / "q-vercel-latency.json"
 
 with open(DATA_FILE, "r") as f:
@@ -28,9 +27,31 @@ class RequestBody(BaseModel):
     threshold_ms: float
 
 
+# Explicit CORS headers
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Expose-Headers": "Access-Control-Allow-Origin",
+}
+
+
 @app.get("/")
 def home():
-    return {"status": "ok"}
+    return Response(
+        content='{"status":"ok"}',
+        media_type="application/json",
+        headers=CORS_HEADERS,
+    )
+
+
+@app.options("/")
+def options():
+    return Response(
+        content="",
+        status_code=200,
+        headers=CORS_HEADERS,
+    )
 
 
 @app.post("/")
@@ -44,13 +65,18 @@ def metrics(req: RequestBody):
         uptimes = [r["uptime_pct"] for r in rows]
 
         result[region] = {
-            "avg_latency": round(float(np.mean(latencies)), 6),
-            "p95_latency": round(float(np.percentile(latencies, 95)), 6),
-            "avg_uptime": round(float(np.mean(uptimes)), 6),
+            "avg_latency": float(np.mean(latencies)),
+            "p95_latency": float(np.percentile(latencies, 95)),
+            "avg_uptime": float(np.mean(uptimes)),
             "breaches": sum(
-                1 for latency in latencies
+                1
+                for latency in latencies
                 if latency > req.threshold_ms
-            )
+            ),
         }
 
-    return result
+    return Response(
+        content=json.dumps(result),
+        media_type="application/json",
+        headers=CORS_HEADERS,
+    )
