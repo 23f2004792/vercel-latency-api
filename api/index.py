@@ -7,6 +7,7 @@ import numpy as np
 
 app = FastAPI()
 
+# CORS configuration that other IITM students reported working
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -33,7 +34,7 @@ def home():
 
 @app.post("/")
 def metrics(req: RequestBody):
-    result = {}
+    regions = {}
 
     for region in req.regions:
         rows = [r for r in DATA if r["region"] == region]
@@ -41,7 +42,7 @@ def metrics(req: RequestBody):
         latencies = [r["latency_ms"] for r in rows]
         uptimes = [r["uptime_pct"] for r in rows]
 
-        result[region] = {
+        regions[region] = {
             "avg_latency": float(np.mean(latencies)),
             "p95_latency": float(np.percentile(latencies, 95)),
             "avg_uptime": float(np.mean(uptimes)),
@@ -51,4 +52,6 @@ def metrics(req: RequestBody):
             ),
         }
 
-    return result
+    return {
+        "regions": regions
+    }
