@@ -56,7 +56,7 @@ def options():
 
 @app.post("/")
 def metrics(req: RequestBody):
-    result = {}
+    regions_result = {}
 
     for region in req.regions:
         rows = [r for r in DATA if r["region"] == region]
@@ -64,19 +64,16 @@ def metrics(req: RequestBody):
         latencies = [r["latency_ms"] for r in rows]
         uptimes = [r["uptime_pct"] for r in rows]
 
-        result[region] = {
+        regions_result[region] = {
             "avg_latency": float(np.mean(latencies)),
             "p95_latency": float(np.percentile(latencies, 95)),
             "avg_uptime": float(np.mean(uptimes)),
             "breaches": sum(
-                1
-                for latency in latencies
+                1 for latency in latencies
                 if latency > req.threshold_ms
             ),
         }
 
-    return Response(
-        content=json.dumps(result),
-        media_type="application/json",
-        headers=CORS_HEADERS,
-    )
+    return {
+        "regions": regions_result
+    }
