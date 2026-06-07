@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Response
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pathlib import Path
@@ -7,13 +7,12 @@ import numpy as np
 
 app = FastAPI()
 
-# Standard FastAPI CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+    expose_headers=["Access-Control-Allow-Origin"],
 )
 
 DATA_FILE = Path(__file__).parent.parent / "q-vercel-latency.json"
@@ -27,36 +26,14 @@ class RequestBody(BaseModel):
     threshold_ms: float
 
 
-# Explicit CORS headers
-CORS_HEADERS = {
-    "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization",
-    "Access-Control-Expose-Headers": "Access-Control-Allow-Origin",
-}
-
-
 @app.get("/")
 def home():
-    return Response(
-        content='{"status":"ok"}',
-        media_type="application/json",
-        headers=CORS_HEADERS,
-    )
-
-
-@app.options("/")
-def options():
-    return Response(
-        content="",
-        status_code=200,
-        headers=CORS_HEADERS,
-    )
+    return {"status": "ok"}
 
 
 @app.post("/")
 def metrics(req: RequestBody):
-    regions_result = {}
+    result = {}
 
     for region in req.regions:
         rows = [r for r in DATA if r["region"] == region]
@@ -64,7 +41,7 @@ def metrics(req: RequestBody):
         latencies = [r["latency_ms"] for r in rows]
         uptimes = [r["uptime_pct"] for r in rows]
 
-        regions_result[region] = {
+        result[region] = {
             "avg_latency": float(np.mean(latencies)),
             "p95_latency": float(np.percentile(latencies, 95)),
             "avg_uptime": float(np.mean(uptimes)),
@@ -74,6 +51,4 @@ def metrics(req: RequestBody):
             ),
         }
 
-    return {
-        "regions": regions_result
-    }
+    return result
